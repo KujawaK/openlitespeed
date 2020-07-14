@@ -1,0 +1,51 @@
+--- a/src/liblsquic/ls-qpack/lsqpack.c
++++ b/src/liblsquic/ls-qpack/lsqpack.c
+@@ -41,12 +41,7 @@ SOFTWARE.
+ 
+ #include "lsqpack.h"
+ #include "lsxpack_header.h"
+-
+-#ifdef XXH_HEADER_NAME
+-#include XXH_HEADER_NAME
+-#else
+-#include <xxhash.h>
+-#endif
++#include "lsquic_xxhash.h"
+ 
+ #include "huff-tables.h"
+ 
+--- a/src/lshpack/bin/find-xxh.c
++++ b/src/lshpack/bin/find-xxh.c
+@@ -14,7 +14,7 @@
+ #include <string.h>
+ #include <unistd.h>
+ 
+-#include XXH_HEADER_NAME
++#include "lsquic_xxhash.h"
+ 
+ #define NAME_VAL(a, b) sizeof(a) - 1, sizeof(b) - 1, (a), (b)
+ 
+
+--- a/src/lshpack/bin/calc-xxh.c
++++ b/src/lshpack/bin/calc-xxh.c
+@@ -6,7 +6,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ 
+-#include XXH_HEADER_NAME
++#include "lsquic_xxhash.h"
+ 
+ int
+ main (int argc, char **argv)
+--- a/src/lshpack/lshpack.c
++++ b/src/lshpack/lshpack.c
+@@ -32,7 +32,7 @@ SOFTWARE.
+ #if LS_HPACK_EMIT_TEST_CODE
+ #include "lshpack-test.h"
+ #endif
+-#include XXH_HEADER_NAME
++#include "lsr/xxhash.h"
+ 
+ #ifndef LS_HPACK_USE_LARGE_TABLES
+ #define LS_HPACK_USE_LARGE_TABLES 1
+
