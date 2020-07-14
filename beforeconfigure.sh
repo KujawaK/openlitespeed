@@ -29,29 +29,9 @@
         fi
     fi
 
-STDC_LIB=`g++ -print-file-name='libstdc++.a'`
-cp ${STDC_LIB} ../thirdparty/lib64/
-cp ../thirdparty/src/brotli/out/*.a          ../thirdparty/lib64/
-cp ../thirdparty/src//libxml2/.libs/*.a      ../thirdparty/lib64/
-cp ../thirdparty/src/libmaxminddb/include/*  ../thirdparty/include/
-
-if [ "${ISLINUX}" = "yes" ] ; then
-    fixPagespeed
-fi
-
-#special case modsecurity
-cd src/modules/modsecurity-ls
-ln -sf ../../../../thirdparty/src/ModSecurity .
-cd ../../../
-#Done of modsecurity
-    if [ ! -d /dev/shm ] ; then
-        mkdir /tmp/shm
-        chmod 777  /tmp/shm
-        sed -i -e "s/\/dev\/shm/\/tmp\/shm/g" dist/conf/httpd_config.conf.in
-    fi
-
 ###
 git submodule update --init --recursive || exit
+sed -i 's/BSSL=`. $srcdir\/dlbssl.sh "$OPENLSWS_BSSL"`/$srcdir\/dlbssl.sh "$OPENLSWS_BSSL"/g' configure
 sed -i 's/LSRECAPTCHA=`. $srcdir\/src\/modules\/lsrecaptcha\/build_lsrecaptcha.sh`/$srcdir\/src\/modules\/lsrecaptcha\/build_lsrecaptcha.sh/g' configure
 cp src/lshpack/lshpack.h src/h2/
 patch -Np1 -i xxx_header.patch
