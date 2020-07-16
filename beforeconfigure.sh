@@ -35,10 +35,14 @@ aclocal || exit
 autoconf || exit
 automake --add-missing || exit
 cd include/
+ln -s ../src/liblsquic/ls-qpack/lsxpack_header.h lsxpack_header.h
 ln -s ../src/liblsquic/ls-qpack/lsqpack.h lsqpack.h
+ln -s ../src/lshpack/lshpack.h lshpack.h
+ln -s ../ssl/include/openssl/ openssl
 cd ..
 cp src/lshpack/lshpack.h src/h2/
 patch -Np1 -i xxx_header.patch
 sed -i 's/BSSL=`. $srcdir\/dlbssl.sh "$OPENLSWS_BSSL"`/$srcdir\/dlbssl.sh "$OPENLSWS_BSSL"/g' configure
 sed -i 's/LSRECAPTCHA=`. $srcdir\/src\/modules\/lsrecaptcha\/build_lsrecaptcha.sh`/$srcdir\/src\/modules\/lsrecaptcha\/build_lsrecaptcha.sh/g' configure
+autoreconf --force --install
 echo Done
