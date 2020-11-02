@@ -943,17 +943,10 @@ int UnpackedHeaders::updateHeader(int app_index, const char *val, int val_len)
     }
     if (!iter)
     {
-        iter = m_lsxpack.newObj();
-        if (!iter)
-            return LS_FAIL;
-        memset(iter, 0, sizeof(*iter));
-        iter->app_index = app_index;
-        iter->flags = LSXPACK_APP_IDX;
-        if (app_index >= 0 && app_index < HttpHeader::H_TE)
-        {
-            if (m_commonHeaderPos[app_index] == 0)
-                m_commonHeaderPos[app_index] = iter - m_lsxpack.begin();
-        }
+        return appendHeader(app_index,
+                            HttpHeader::getHeaderNameLowercase(app_index),
+                            HttpHeader::getHeaderStringLen(app_index),
+                            val, val_len);
     }
 
     iter->val_offset = m_buf->size();
@@ -1503,7 +1496,8 @@ lsxpack_header_t *UpkdHdrBuilder::prepareDecode(lsxpack_header_t *hdr,
 
     if ((size_t)headers->m_buf->available() < mini_buf_size + 2)
     {
-        if (headers->m_buf->size() + mini_buf_size >= MAX_BUF_SIZE)
+        size_t increase_to = (mini_buf_size + 2 + 255) & (~255);
+        if (increase_to >= MAX_BUF_SIZE)
         {
             if (hdr && hdr == working)
             {
@@ -1512,7 +1506,6 @@ lsxpack_header_t *UpkdHdrBuilder::prepareDecode(lsxpack_header_t *hdr,
             }
             return NULL;
         }
-        size_t increase_to = (mini_buf_size + 2 + 255) & (~255);
         if (headers->m_buf->guarantee(increase_to) == -1)
             return NULL;
         assert((size_t)headers->m_buf->available() >= mini_buf_size + 2);

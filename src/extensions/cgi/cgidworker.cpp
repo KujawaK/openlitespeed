@@ -151,6 +151,7 @@ int CgidWorker::spawnCgid(int fd, char *pData, const char *secret)
 {
     int pid;
     const char *pChroot = "";
+
     if (ServerProcessConfig::getInstance().getChroot() != NULL)
         pChroot = ServerProcessConfig::getInstance().getChroot()->c_str();
     snprintf(pData, 255, "uds:/%s%s", pChroot,
@@ -364,6 +365,11 @@ int CgidWorker::config(const XmlNode *pNode1)
     procConfig.setCGroupDefault(ConfigCtx::getCurConfigCtx()->getLongValue(pNode1,
         "cgroups", 0, 2, 0) == ServerProcessConfig::CGROUP_CONFIG_DEFAULT_ON);
 #endif
+
+
+    if (MainServerConfig::getInstance().getConfTestMode())
+        return 0;
+
 
     CgidWorker::setCgidWorkerPid(
         start(MainServerConfig::getInstance().getServerRoot(), psChroot,

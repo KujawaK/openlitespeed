@@ -1,6 +1,6 @@
 #! /bin/sh
 
-LSUPVERSION=v2.71-2/28/2020
+LSUPVERSION=v2.83-9/29/2020
 LOCKFILE=/tmp/olsupdatingflag
 
 PIDFILE=/tmp/lshttpd/lshttpd.pid
@@ -65,6 +65,18 @@ stopService()
     if [ $RUNNING -eq 1 ] ; then
         ${LSWSCTRL} stop
     fi
+    
+    FPID=`cat $PIDFILE`
+    if [ "x$FPID" != "x" ]; then
+        kill -9 $FPID 2>/dev/null
+    fi    
+    
+    #when FPID not exist, try again
+    FPID=`ps -ef | grep openlitespeed | grep -v grep | awk '{print $2}'`
+    if [ "x$FPID" != "x" ]; then
+        kill -9 $FPID 2>/dev/null
+    fi    
+    
 }
 
 
@@ -77,6 +89,11 @@ DLCMD=
 ONLYBIN=no
 
 OSNAME=`uname -s`
+
+
+URLDIR=
+URLMODE=
+
 ISLINUX=yes
 if [ "x$OSNAME" != "xLinux" ] ; then
     ISLINUX=no
@@ -332,6 +349,12 @@ Usage: lsup.sh [-t] | [-c] | [[-d] [-r] | [-v|-e VERSION]]
   
   -d
      Choose Debug version to upgrade or downgrade, will do clean like -c at the same time.
+
+  -s
+     Choose Asan version to upgrade or downgrade, will do clean like -c at the same time.
+     
+  -b
+     Choose under development version instead of released version. <special option, be careful>
   
   -v VERSION
      If VERSION is given, this command will try to install specified VERSION. Otherwise, it will get the latest version from ${LSWSHOME}/autoupdate/release.
@@ -370,6 +393,12 @@ while [ "x$1" != "x" ]
 do
     if [ "x$1" = "x-d" ] ; then
         ISDEBUG=yes
+        shift
+    elif [ "x$1" = "x-s" ] ; then
+        ISASAN=yes
+        shift    
+    elif [ "x$1" = "x-b" ] ; then
+        ISBETA=yes
         shift
     elif [ "x$1" = "--help" ] ; then
         display_usage
@@ -424,7 +453,7 @@ if [ -f ${LOCKFILE} ] ; then
         echoG "${LOCKFILE} exists, timestamp is $FILETIME, current time is $SYSTEMTIME, removed it."
         rm -rf ${LOCKFILE}
     else
-        echoR "Openlitespeed is updating, quit."
+        echoR "Openlitespeed is updating, quit. (You may run -c to remove the lock file and try again.)"
         exit 0
     fi
 fi
@@ -440,14 +469,27 @@ if [ -f ols.tgz ] ; then
     rm -f ols.tgz
 fi
 
+
+if [ "x${ISBETA}" = "xyes" ]; then
+    URLDIR=preuse
+else
+    URLDIR=packages
+fi
+
 if [ "x${ISLINUX}" = "xyes" ] ; then
-    URL=https://openlitespeed.org/packages/openlitespeed-${VERSION}.tgz
-    if [ "$ISDEBUG" = "yes" ] ; then
-        URL=https://openlitespeed.org/packages/openlitespeed-${VERSION}.d.tgz
+    
+    if [ "$ISASAN" = "yes" ] ; then
+        URLMODE=a.
+    elif [ "$ISDEBUG" = "yes" ] ; then
+        URLMODE=d.
+    else
+        URLMODE=
     fi
 else
-    URL=https://openlitespeed.org/packages/openlitespeed-${VERSION}.src.tgz
+    URLMODE=src.
 fi
+
+URL=https://openlitespeed.org/${URLDIR}/openlitespeed-${VERSION}.${URLMODE}tgz
 echoG "download URL is ${URL}"
 
 testsz=1000000  
@@ -462,32 +504,31 @@ if [ $RET = 0 ] ; then
 fi
     
 if [ $RET != 0 ] ; then
-    echoR "Failed to download $URL, will try our under development version."
-    
-    if [ "x${ISLINUX}" = "xyes" ] ; then
-        URL=https://openlitespeed.org/preuse/openlitespeed-${VERSION}.tgz
-        if [ "$ISDEBUG" = "yes" ] ; then
-            URL=https://openlitespeed.org/preuse/openlitespeed-${VERSION}.d.tgz
-        fi
-    else
-        URL=https://openlitespeed.org/preuse/openlitespeed-${VERSION}.src.tgz
-    fi
-    echoG "download URL is ${URL}"
-    
-    RET=1
-    $DLCMD ols.tgz $URL
-    RET=$?
-    if [ $RET = 0 ] ; then
-        tz=$(stat -c%s ols.tgz)
-        if [ $tz -lt $testsz ] ; then
-            RET=1
-        fi
-    fi
-    
-    if [ $RET != 0 ] ; then
-        echoR "Error again, failed to download $URL, quit."
+    if [ "x${URLDIR}" = "xpreuse" ] ; then
+        echoR "Error, failed to download $URL, quit."
         rm -rf ${LOCKFILE}
         exit 7
+    else
+        echoR "Failed to download $URL, will try our under development version."
+        URLDIR=preuse
+        URL=https://openlitespeed.org/${URLDIR}/openlitespeed-${VERSION}.${URLMODE}tgz
+        echoG "download URL is ${URL}"
+        
+        RET=1
+        $DLCMD ols.tgz $URL
+        RET=$?
+        if [ $RET = 0 ] ; then
+            tz=$(stat -c%s ols.tgz)
+            if [ $tz -lt $testsz ] ; then
+                RET=1
+            fi
+        fi
+        
+        if [ $RET != 0 ] ; then
+            echoR "Error, failed to download $URL, quit."
+            rm -rf ${LOCKFILE}
+            exit 7
+        fi
     fi
 fi
 
@@ -507,6 +548,9 @@ if [ -f ${LSWSHOME}/VERSION ] ; then
 fi
 
 stopService
+if [ -e /tmp/lshttpd/bak_core ] ; then
+    mv /tmp/lshttpd/bak_core /tmp/lshttpdcore
+fi
 rm -rf /tmp/lshttpd/*
 if [ -e /dev/shm/ols ] ; then
     rm -rf /dev/shm/ols/*

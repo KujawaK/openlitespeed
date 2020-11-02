@@ -155,6 +155,7 @@ public:
 
 class AutoBuf;
 class LsShmTidMgr;
+struct LsShmTidTblBlk;
 class LsShmHash : public ls_shmhash_s
 {
 public:
@@ -240,7 +241,9 @@ public:
 //     void *getObsData(LsShmHElem *pElem, LsShmObserver *pObserver) const;
     void *getObsData(LsShmHElem *pElem) const;
 
-    LsShmOffset_t alloc2(LsShmSize_t size, int &remapped);
+    LsShmOffset_t alloc2(LsShmSize_t size);
+    LsShmOffset_t alloc2(LsShmSize_t size, int &remapped)
+    {   return alloc2(size);    }
 
     void release2(LsShmOffset_t offset, LsShmSize_t size);
 
@@ -563,8 +566,10 @@ public:
     // Returns the next tid with a value. outOffset and outDelTid will be zeroed.
     // If the tid is a 'delete', outDelTid will be set to the tid deleted.
     // else outOffset will be set to the offset assicated with the returned tid.
-    uint64_t nextTidVal(uint64_t tidIn, void *&pSearchState,
+    uint64_t nextTidVal(uint64_t tidIn, LsShmTidTblBlk *&pSearchState,
             iteroffset &outOffset, uint64_t &outDelTid) const;
+    int getTidVal(uint64_t tid, LsShmTidTblBlk **pCurBlk,
+        iteroffset *outOffset, uint64_t *outDelTid) const;
     void assignTid(iteroffset iterOff, uint64_t tid);
     void updateLastTid(uint64_t tid);
 
@@ -703,6 +708,11 @@ protected:
 
     iteroffset allocIter(int key_len, int val_len);
 
+#if DEBUG_SHM_HASH
+    int validateIndexSlot(uint32_t index);
+#else
+    int validateIndexSlot(uint32_t index)   {   return 0;   }
+#endif
     //
     //  @brief eraseIterator_helper
     //  @brief  should only be called after SHM-HASH-LOCK has been acquired.

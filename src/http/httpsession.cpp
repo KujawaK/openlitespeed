@@ -490,6 +490,7 @@ void HttpSession::resumeSSI()
 
 void HttpSession::nextRequest()
 {
+    LS_DBG_M(getLogSession(), "calling removeSessionCb on this %p\n", this);
     EvtcbQue::getInstance().removeSessionCb(this);
 
     LS_DBG_L(getLogSession(), "HttpSession::nextRequest()!");
@@ -499,9 +500,6 @@ void HttpSession::nextRequest()
             return;
         incReqProcessed();
     }
-
-    LS_DBG_M(getLogSession(), "calling removeSessionCb on this %p\n", this);
-    EvtcbQue::getInstance().removeSessionCb(this);
 
     getStream()->flush();
     setState(HSS_WAITING);
@@ -547,7 +545,7 @@ void HttpSession::nextRequest()
 
         m_lReqTime = DateTime::s_curTime;
         m_iReqTimeUs = DateTime::s_curTimeUs;
-        m_sendFileInfo.release();
+
         m_response.reset();
         m_request.reset(1);
         releaseMtSessData();
@@ -1752,7 +1750,8 @@ int HttpSession::getVHostAccess()
         m_pVHostAcl = pAcl;
     }
 
-    LS_DBG_M(getLogSession(), "getVHostAccess, acl returned access %d", m_iVHostAccess);
+    LS_DBG_M(getLogSession(), "getVHostAccess, host %p, acl returned access %d",
+             pVHost, m_iVHostAccess);
     return m_iVHostAccess;
 }
 
@@ -2438,7 +2437,7 @@ int HttpSession::handlerProcess(const HttpHandler *pHandler)
     {
         LS_DBG_L(getLogSession(), "HttpSession::CGroup don't activate, type: %s "
                  "vHost: %p, vHost->enableCGroup: %s, config.getCGroupAllow: %s\n",
-                 (m_request.getHttpHandler()->getType() == HandlerType::HT_CGI) ? "CGI" : "NOT CGI",
+                 HandlerType::getHandlerTypeString(m_request.getHttpHandler()->getType()),
                  pVHost, ((pVHost) && (pVHost->enableCGroup())) ? "YES" : "NO",
                  ServerProcessConfig::getInstance().getCGroupAllow() ? "YES" : "NO");
     }
@@ -2920,8 +2919,8 @@ int HttpSession::onWriteEx()
 
     if (m_iFlag & HSF_CUR_SUB_SESSION_DONE)
         curSubSessionCleanUp();
-
-    switch (getState())
+    int state = getState();
+    switch (state)
     {
     case HSS_THROTTLING:
         ret = handlerProcess(m_request.getHttpHandler());
@@ -4559,6 +4558,27 @@ void HttpSession::processServerPush()
                                              LSI_HEADEROP_MERGE);
         }
     }
+}
+
+
+int HttpSession::addExpiresHeader()
+{
+    int ret;
+    const ExpiresCtrl *pExpireDefault = getReq()->shouldAddExpires();
+    if (pExpireDefault)
+    {
+        const MimeSetting *pMime = getReq()->getMimeType();
+        if (pMime->getExpires()->getBase())
+            pExpireDefault = pMime->getExpires();
+        if (pExpireDefault->getBase())
+        {
+            ret = getResp()->addExpiresHeader(m_sendFileInfo.getFileData()
+                                            ->getLastMod(), pExpireDefault);
+            if (ret)
+                return ret;
+        }
+    }
+    return LS_OK;
 }
 
 
